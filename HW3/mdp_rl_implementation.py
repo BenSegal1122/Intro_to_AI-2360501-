@@ -1,3 +1,4 @@
+import mdp
 from mdp import Action, MDP
 from simulator import Simulator
 from typing import Dict, List, Tuple
@@ -9,53 +10,6 @@ import sys
 def calc_L1_norm(U, U_final, state_x, state_y):
     return abs(U[state_x][state_y].item() - U_final[state_x][state_y].item())
 
-###################################################################
-
-
-####################################################################
-def value_iteration3(mdp: MDP, U_init: np.ndarray, epsilon: float = 10 ** (-3)) -> np.ndarray:
-    # Given the mdp, the initial utility of each state - U_init,
-    #   and the upper limit - epsilon.
-    # run the value iteration algorithm and
-    # return: the utility for each of the MDP's state obtained at the end of the algorithms' run.
-    #
-
-    U_final = None
-    # TODO:
-    # ====== YOUR CODE: ======
-    U = U_init.astype(float)
-    while True:
-        U_final = U.astype(float)
-        delta = 0
-        valid_states = [(i, j) for i in range(mdp.num_row) for j in range(mdp.num_col) if mdp.board[i][j] != 'WALL']
-        for x, y in valid_states:
-            state = (x, y)
-            if state in mdp.terminal_states:
-                U[x][y] = float(mdp.board[x][y])
-            else:
-                max_util = None
-                for action in mdp.actions.keys():
-                    prob = mdp.transition_function[action]
-                    util_list = []
-                    for next_state in [mdp.step(state, action_taken) for action_taken in mdp.actions.keys()]:
-                        next_x, next_y = next_state[0], next_state[1]
-                        util_list.append((U[next_x][next_y]).item())
-                    curr_utility = sum(np.array(prob) * np.array(util_list))
-
-                    if not max_util or max_util < curr_utility:
-                        max_util = curr_utility
-
-                U[x][y] = float(mdp.board[x][y]) + mdp.gamma * max_util
-
-            delta = max(delta, abs(U[x][y].item() - U_final[x][y].item()))
-            if delta < ((epsilon * (1 - mdp.gamma)) / mdp.gamma):
-                return U_final
-
-    # ========================
-    return U_final
-
-
-####################################################################
 def value_iteration(mdp: MDP, U_init: np.ndarray, epsilon: float=10 ** (-3)) -> np.ndarray:
     # Given the mdp, the initial utility of each state - U_init,
     #   and the upper limit - epsilon.
@@ -103,22 +57,83 @@ def get_policy(mdp: MDP, U: np.ndarray) -> np.ndarray:
     
     policy = None
     # TODO:
-    # ====== YOUR CODE: ====== 
-    raise NotImplementedError
+    # ====== YOUR CODE: ======
+    policy = np.full((3, 4), None)
+    valid_states = [(i, j) for i in range(mdp.num_row) for j in range(mdp.num_col) if mdp.board[i][j] != 'WALL']
+    for x, y in valid_states:
+        if (x, y) in mdp.terminal_states:
+            continue
+        utils_dict = {}
+        for action in mdp.actions.keys():
+            next_state = mdp.step((x, y), action)
+            utils_dict[action] = float(U[next_state[0]][next_state[1]])
+        policy[x][y] = max(utils_dict, key=utils_dict.get)
     # ========================
     return policy
 
+def map_matrix_index_to_state(mdp: MDP, index: int):
+    x = index // mdp.num_col
+    y = index % mdp.num_col
+    return x, y
+
+def handle_special_state(index, mdp, R):
+    x, y = map_matrix_index_to_state(mdp, index)
+    if (x, y) in mdp.terminal_states:
+        R[index] = float(mdp.board[x][y])
+        return True
+    elif mdp.board[x][y] == 'WALL':
+        return True
+    return False
+
+
+def derive_key_from_val(dictionary: dict, val):
+    for key in dictionary.keys():
+        if val == key.value:
+            return key
 
 def policy_evaluation(mdp: MDP, policy: np.ndarray) -> np.ndarray:
-
     # Given the mdp, and a policy
     # return: the utility U(s) of each state s
     #
     # TODO:
     # ====== YOUR CODE: ======
-    raise NotImplementedError
+    n = mdp.num_col * mdp.num_row
+    U = np.zeros(n).astype(float)
+    R = np.zeros(n).astype(float)
+    I = np.identity(n).astype(float)
+    P = np.zeros((n, n)).astype(float)
+    for state_idx in range(n):
+        x, y = map_matrix_index_to_state(mdp, state_idx)
+        if handle_special_state(state_idx, mdp, R):
+            continue
+        R[state_idx] = float(mdp.board[x][y])
+        for next_state_idx in range(n):
+            x_next, y_next = map_matrix_index_to_state(mdp, next_state_idx)
+############################################################ ask on piaaza
+            action_by_policy = policy[x][y]
+            #if type(action_by_policy) != Action:
+            #    action_by_policy = derive_key_from_val(mdp.actions, action_by_policy)
+############################################################ ask on piaaza
+            for index_taken, action_taken in enumerate(mdp.actions.keys()):
+                if mdp.step((x, y), action_taken) == (x_next, y_next):
+                    # note that the policy say to take action A, but we might take another action.
+                    # this is due to non-deterministic transition function. that's why the probability refers to
+                    # the transition function at the row of the action A but with the index of the actual taken action.
+                    prob = mdp.transition_function[action_by_policy][index_taken]
+                    P[state_idx][next_state_idx] += prob
+
+    U = (np.linalg.inv(I - mdp.gamma * P)) @ R
+
+    return U.reshape(mdp.num_row, mdp.num_col)
     # ========================
 
+
+def fix_buggy_policy(mdp, policy):
+    for i in range(mdp.num_row):
+        for j in range(mdp.num_col):
+            if policy[i][j] == None:
+                continue
+            policy[i][j] = derive_key_from_val(mdp.actions, policy[i][j])
 
 def policy_iteration(mdp: MDP, policy_init: np.ndarray) -> np.ndarray:
 
@@ -129,7 +144,49 @@ def policy_iteration(mdp: MDP, policy_init: np.ndarray) -> np.ndarray:
     optimal_policy = None
     # TODO:
     # ====== YOUR CODE: ======
-    raise NotImplementedError
+    unchanged = False
+    buggy_policy_init = policy_init
+    fix_buggy_policy(mdp, buggy_policy_init)
+    optimal_policy = buggy_policy_init
+    while not unchanged:
+        unchanged = True
+        U = policy_evaluation(mdp, optimal_policy)
+
+        valid_states = [(i, j) for i in range(mdp.num_row) for j in range(mdp.num_col) if mdp.board[i][j] != 'WALL']
+        for x, y in valid_states:
+            if (x, y) in mdp.terminal_states:
+                continue
+            state = (x, y)
+            sum_dict = {}
+            action_by_policy = optimal_policy[x][y]
+
+            for action in mdp.actions.keys():
+                prob = mdp.transition_function[action]
+                sum_lhs = 0.0
+
+                for index, next_state in enumerate(
+                        [mdp.step(state, action_taken) for action_taken in mdp.actions.keys()]):
+                    next_x, next_y = next_state[0], next_state[1]
+                    sum_lhs += prob[index] * (U[next_x][next_y]).item()
+
+                sum_dict[action] = sum_lhs
+
+            sum_rhs = 0.0
+            for index, next_state in enumerate(
+                    [mdp.step(state, action_taken) for action_taken in mdp.actions.keys()]):
+                next_x, next_y = next_state[0], next_state[1]
+                a = action_by_policy
+                b = 3
+                probability = mdp.transition_function[action_by_policy][index]
+                sum_rhs += probability * (U[next_x][next_y]).item()
+
+            rhs = sum_rhs
+            argmax_action = max(sum_dict, key=sum_dict.get)
+            lhs = sum_dict[argmax_action]
+            if lhs > rhs:
+                optimal_policy[x][y] = argmax_action
+                unchanged = False
+
     # ========================
     return optimal_policy
 
