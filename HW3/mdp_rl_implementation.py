@@ -175,8 +175,6 @@ def policy_iteration(mdp: MDP, policy_init: np.ndarray) -> np.ndarray:
             for index, next_state in enumerate(
                     [mdp.step(state, action_taken) for action_taken in mdp.actions.keys()]):
                 next_x, next_y = next_state[0], next_state[1]
-                a = action_by_policy
-                b = 3
                 probability = mdp.transition_function[action_by_policy][index]
                 sum_rhs += probability * (U[next_x][next_y]).item()
 
@@ -219,6 +217,34 @@ def adp_algorithm(
     reward_matrix = None
     # TODO
     # ====== YOUR CODE: ======
-    raise NotImplementedError
+    reward_matrix = np.zeros((num_rows, num_cols)).astype(float)
+    counter_actions_dict = {Action.UP: 0, Action.DOWN: 0, Action.RIGHT: 0, Action.LEFT: 0}
+    counter_actual_actions_dict = {Action.UP: {Action.UP: 0.0, Action.DOWN: 0.0, Action.RIGHT: 0.0, Action.LEFT: 0.0},
+                        Action.DOWN: {Action.UP: 0.0, Action.DOWN: 0.0, Action.RIGHT: 0.0, Action.LEFT: 0.0},
+                        Action.RIGHT: {Action.UP: 0.0, Action.DOWN: 0.0, Action.RIGHT: 0.0, Action.LEFT: 0.0},
+                        Action.LEFT: {Action.UP: 0.0, Action.DOWN: 0.0, Action.RIGHT: 0.0, Action.LEFT: 0.0}}
+
+    transition_probs = counter_actual_actions_dict
+
+    for episode_index, episode_gen in enumerate(sim.replay(num_episodes=num_episodes)):
+        for step_index, step in enumerate(episode_gen):
+            state, reward, action, actual_action = step
+            reward_matrix[state[0]][state[1]] = reward
+            if action is not None:
+                counter_actions_dict[action] += 1
+                counter_actual_actions_dict[action][actual_action] += 1
+
+    ###### fixing the wall rewards to none:
+    for i in range(num_rows):
+        for j in range(num_cols):
+            if reward_matrix[i][j] == 0.0:
+                reward_matrix[i][j] = None
+    ####### taking care of transition probabilities:
+    for possible_action in actions:
+        for key in counter_actions_dict.keys():
+            transition_probs[possible_action][key] = counter_actual_actions_dict[possible_action][key] / counter_actions_dict[possible_action]
+
+
+
     # ========================
     return reward_matrix, transition_probs 
