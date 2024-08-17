@@ -62,19 +62,13 @@ def l2_dist(x1: np.array, x2: np.array):
     dists = None
 
     # ====== YOUR CODE: ======
-    x1_expanded = x1[:, np.newaxis, :]  # Shape (N1, 1, D)
-    x2_expanded = x2[np.newaxis, :, :]  # Shape (1, N2, D)
-
-    # Step 2: Calculate squared differences
-    squared_diff = (x1_expanded - x2_expanded) ** 2  # Shape (N1, N2, D)
-
-    # Step 3: Sum squared differences along the feature dimension (axis=2)
-    sum_squared_diff = np.sum(squared_diff, axis=2)  # Shape (N1, N2)
-
-    # Step 4: Take the square root to get the Euclidean distance
-    euclidean_distances = np.sqrt(sum_squared_diff)
-    dists = euclidean_distances
-
+    # to use broadcasting correctly, we need to reshape our x1 and x2 so the first dimension of x2 will be
+    # stretched to x1 num of samples (N1) and the second dimension of x1 will be stretched to x2 num of samples (N2)
+    squared_diff = (x1.reshape(x1.shape[0], 1, x1.shape[1]) - x2.reshape(1, x2.shape[0], x2.shape[1])) ** 2
+    # using axis 2 because we want to sum according to the most inner dim
+    sum_squared_diff = np.sum(squared_diff, axis=2)
+    euclidean_distances_del = np.sqrt(sum_squared_diff)
+    dists = euclidean_distances_del
     # ========================
 
     return dists

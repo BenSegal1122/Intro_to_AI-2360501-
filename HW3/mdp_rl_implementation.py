@@ -7,8 +7,9 @@ from copy import deepcopy
 import sys
 
 
-def calc_L1_norm(U, U_final, state_x, state_y):
-    return abs(U[state_x][state_y].item() - U_final[state_x][state_y].item())
+def calc_L_inf_norm(U, U_final, state_x, state_y):
+    return np.max(np.abs(U[state_x][state_y] - U_final[state_x][state_y]))
+
 
 def value_iteration(mdp: MDP, U_init: np.ndarray, epsilon: float=10 ** (-3)) -> np.ndarray:
     # Given the mdp, the initial utility of each state - U_init,
@@ -41,7 +42,7 @@ def value_iteration(mdp: MDP, U_init: np.ndarray, epsilon: float=10 ** (-3)) -> 
                     sum_list.append(sum)
                 U[x][y] = float(mdp.board[x][y]) + mdp.gamma * max(sum_list)
 
-            diff = calc_L1_norm(U, U_final, x, y)
+            diff = calc_L_inf_norm(U, U_final, x, y)
             if delta < diff:
                 delta = diff
             if delta < ((epsilon * (1 - mdp.gamma)) / mdp.gamma):
@@ -234,17 +235,14 @@ def adp_algorithm(
                 counter_actions_dict[action] += 1
                 counter_actual_actions_dict[action][actual_action] += 1
 
-    ###### fixing the wall rewards to none:
+    # fixing the wall rewards to none:
     for i in range(num_rows):
         for j in range(num_cols):
             if reward_matrix[i][j] == 0.0:
                 reward_matrix[i][j] = None
-    ####### taking care of transition probabilities:
+    # taking care of transition probabilities:
     for possible_action in actions:
         for key in counter_actions_dict.keys():
             transition_probs[possible_action][key] = counter_actual_actions_dict[possible_action][key] / counter_actions_dict[possible_action]
-
-
-
     # ========================
     return reward_matrix, transition_probs 
