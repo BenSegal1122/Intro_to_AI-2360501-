@@ -21,7 +21,8 @@ def value_iteration(mdp: MDP, U_init: np.ndarray, epsilon: float=10 ** (-3)) -> 
     U_final = None
     # TODO:
     # ====== YOUR CODE: ======
-    U = U_init.astype(float)
+    U = np.array(U_init).astype(float)
+    U = np.array(U).astype(float)
     while True:
         U_final = U.astype(float)
         delta = 0
@@ -110,16 +111,12 @@ def policy_evaluation(mdp: MDP, policy: np.ndarray) -> np.ndarray:
         R[state_idx] = float(mdp.board[x][y])
         for next_state_idx in range(n):
             x_next, y_next = map_matrix_index_to_state(mdp, next_state_idx)
-############################################################ ask on piaaza
             action_by_policy = policy[x][y]
-            #if type(action_by_policy) != Action:
-            #    action_by_policy = derive_key_from_val(mdp.actions, action_by_policy)
-############################################################ ask on piaaza
             for index_taken, action_taken in enumerate(mdp.actions.keys()):
                 if mdp.step((x, y), action_taken) == (x_next, y_next):
                     # note that the policy say to take action A, but we might take another action.
                     # this is due to non-deterministic transition function. that's why the probability refers to
-                    # the transition function at the row of the action A but with the index of the actual taken action.
+                    # the transition function at the row of the action A, but with the index of the actual taken action.
                     prob = mdp.transition_function[action_by_policy][index_taken]
                     P[state_idx][next_state_idx] += prob
 
@@ -129,7 +126,7 @@ def policy_evaluation(mdp: MDP, policy: np.ndarray) -> np.ndarray:
     # ========================
 
 
-def fix_buggy_policy(mdp, policy):
+def fix_policy_format(mdp, policy):
     for i in range(mdp.num_row):
         for j in range(mdp.num_col):
             if policy[i][j] == None:
@@ -147,7 +144,7 @@ def policy_iteration(mdp: MDP, policy_init: np.ndarray) -> np.ndarray:
     # ====== YOUR CODE: ======
     unchanged = False
     buggy_policy_init = policy_init
-    fix_buggy_policy(mdp, buggy_policy_init)
+    fix_policy_format(mdp, buggy_policy_init)
     optimal_policy = buggy_policy_init
     while not unchanged:
         unchanged = True
@@ -218,7 +215,7 @@ def adp_algorithm(
     reward_matrix = None
     # TODO
     # ====== YOUR CODE: ======
-    reward_matrix = np.zeros((num_rows, num_cols)).astype(float)
+    reward_matrix = np.full((num_rows, num_cols), None, dtype=object)
     counter_actions_dict = {Action.UP: 0, Action.DOWN: 0, Action.RIGHT: 0, Action.LEFT: 0}
     counter_actual_actions_dict = {Action.UP: {Action.UP: 0.0, Action.DOWN: 0.0, Action.RIGHT: 0.0, Action.LEFT: 0.0},
                         Action.DOWN: {Action.UP: 0.0, Action.DOWN: 0.0, Action.RIGHT: 0.0, Action.LEFT: 0.0},
@@ -235,11 +232,6 @@ def adp_algorithm(
                 counter_actions_dict[action] += 1
                 counter_actual_actions_dict[action][actual_action] += 1
 
-    # fixing the wall rewards to none:
-    for i in range(num_rows):
-        for j in range(num_cols):
-            if reward_matrix[i][j] == 0.0:
-                reward_matrix[i][j] = None
     # taking care of transition probabilities:
     for possible_action in actions:
         for key in counter_actions_dict.keys():

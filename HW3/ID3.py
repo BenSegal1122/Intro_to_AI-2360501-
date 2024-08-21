@@ -1,7 +1,4 @@
 import math
-
-import numpy as np
-
 from DecisonTree import Leaf, Question, DecisionNode, class_counts
 from utils import *
 
@@ -127,15 +124,15 @@ class ID3:
 
         # ====== YOUR CODE: ======
         possible_labels = set(labels)
-        features_num = rows.shape[1]
-        for feature in range(features_num):
+        total_num_of_features = rows.shape[1]
+        for feature_col_idx in range(total_num_of_features):
             # order the values monotonically:
-            values = np.sort(rows[:, feature])
+            monotonically_ordered_values = np.sort(rows[:, feature_col_idx])
             for label in possible_labels:
-                for val_index in range(len(values) - 1):
+                for val, next_val in zip(monotonically_ordered_values, monotonically_ordered_values[1:]):
                     # define a threshold by using average as we saw in the lecture:
-                    threshold = (values[val_index] + values[val_index + 1]) / 2
-                    question_to_ask = Question(label, feature, threshold)
+                    threshold = (val + next_val) / 2
+                    question_to_ask = Question(label, feature_col_idx, threshold)
                     gain, true_rows, true_labels, false_rows, false_labels = self.partition(rows, labels,
                                                                                             question_to_ask,
                                                                                             current_uncertainty)
@@ -156,7 +153,6 @@ class ID3:
         :param rows: array of samples
         :param labels: rows data labels.
         :return: a Question node, This records the best feature / value to ask at this point, depending on the answer.
-                or leaf if we have to prune this branch (in which cases ?)
 
         """
         # TODO:
